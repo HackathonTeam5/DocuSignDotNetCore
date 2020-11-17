@@ -1,0 +1,5 @@
+{
+    "appService.preDeployTask": "publish-release",
+    "appService.deploySubpath": "launcher-csharp\\bin\\Release\\netcoreapp3.1\\publish",
+    "appService.defaultWebAppToDeploy": "/subscriptions/9b0b4a64-5b7e-415d-a603-d744ca371ebe/resourceGroups/HackathonTeam/providers/Microsoft.Web/sites/docusignDotNetCore"
+}

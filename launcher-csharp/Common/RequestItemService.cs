@@ -1,0 +1,154 @@
+﻿using DocuSign.eSign.Client;
+using DocuSign.eSign.Client.Auth;
+using DocuSign.CodeExamples.Models;
+using Microsoft.AspNetCore.Http;
+using Microsoft.Extensions.Caching.Memory;
+using Microsoft.Extensions.Configuration;
+using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Security.Claims;
+using static DocuSign.eSign.Client.Auth.OAuth;
+using static DocuSign.eSign.Client.Auth.OAuth.UserInfo;
+
+namespace DocuSign.CodeExamples.Common
+{
+    public class RequestItemsService : IRequestItemsService
+    {
+        private readonly IHttpContextAccessor _httpContextAccessor;
+        private readonly IConfiguration _configuration;
+        private readonly IMemoryCache _cache;
+        private readonly string _id;                 
+        private OAuthToken _authToken;
+        protected static ApiClient _apiClient { get; private set; }
+        private static Account _account { get; set; }
+
+        public RequestItemsService(IHttpContextAccessor httpContextAccessor, IMemoryCache cache, IConfiguration configuration)
+        {
+            _httpContextAccessor = httpContextAccessor;
+            _configuration = configuration;
+            _cache = cache;
+            Status = "sent";
+            _apiClient ??= new ApiClient();
+            var identity = httpContextAccessor.HttpContext.User.Identity as ClaimsIdentity;
+
+            if (identity != null && identity.IsAuthenticated)
+            {
+                _id = httpContextAccessor.HttpContext.User.Identity.Name;
+            }
+        }
+
+        public void UpdateUserFromJWT()
+        {
+            this._authToken = _apiClient.RequestJWTUserToken(
+                this._configuration["DocuSignJWT:ClientId"],
+                this._configuration["DocuSignJWT:ImpersonatedUserId"],
+                this._configuration["DocuSignJWT:AuthServer"],
+                DSHelper.ReadFileContent(DSHelper.PrepareFullPrivateKeyFilePath(this._configuration["DocuSignJWT:PrivateKeyFile"])),
+                1,
+                new List<string>
+                {
+                    "signature",
+                    "impersonation",
+                    "dtr.rooms.read",
+                    "dtr.rooms.write",
+                    "dtr.documents.read",
+                    "dtr.documents.write",
+                    "dtr.profile.read",
+                    "dtr.profile.write",
+                    "dtr.company.read",
+                    "dtr.company.write",
+                    "room_forms"
+                });
+            _account = GetAccountInfo(_authToken);
+
+            this.User = new User
+            {
+                Name = _account.AccountName,
+                AccessToken = _authToken.access_token,
+                ExpireIn = DateTime.Now.AddSeconds(_authToken.expires_in.Value),
+                AccountId = _account.AccountId
+            };
+
+            this.Session = new Session
+            {
+                AccountId = _account.AccountId,
+                AccountName = _account.AccountName,
+                BasePath = _account.BaseUri,
+                RoomsApiBasePath = _configuration["DocuSign:RoomsApiEndpoint"]
+            };
+        }
+
+        public void Logout()
+        {
+            this._authToken = null;
+            this.User = null;
+        }
+
+        public bool CheckToken(int bufferMin = 60)
+        {
+            bool isAuthCodeGrantAuthenticated = this._httpContextAccessor.HttpContext.User.Identity.IsAuthenticated
+                && (DateTime.Now.Subtract(TimeSpan.FromMinutes(bufferMin)) < User.ExpireIn.Value);
+
+            bool isJWTGrantAuthenticated = User?.AccessToken != null
+                    && (DateTime.Now.Subtract(TimeSpan.FromMinutes(bufferMin)) < User.ExpireIn.Value);
+
+            return isAuthCodeGrantAuthenticated || isJWTGrantAuthenticated;
+        }
+
+        private string GetKey(string key)
+        {
+            return string.Format("{0}_{1}", _id, key);
+        }
+        
+        public string EgName {
+            get => _cache.Get<string>(GetKey("EgName"));
+            set => _cache.Set(GetKey("EgName"), value);
+        }
+       
+        public Session Session {
+            get => _cache.Get<Session>(GetKey("Session"));
+            set => _cache.Set(GetKey("Session"), value);
+        }
+
+        public User User {
+            get => _cache.Get<User>(GetKey("User"));
+            set => _cache.Set(GetKey("User"), value);
+        }
+
+        public string EnvelopeId {
+            get => _cache.Get<string>(GetKey("EnvelopeId"));
+            set => _cache.Set(GetKey("EnvelopeId"), value);
+        }
+
+        public string DocumentId {
+            get => _cache.Get<string>(GetKey("DocumentId"));
+            set => _cache.Set(GetKey("DocumentId"), value);
+        }
+
+        public EnvelopeDocuments EnvelopeDocuments {
+            get => _cache.Get<EnvelopeDocuments>(GetKey("EnvelopeDocuments"));
+            set => _cache.Set(GetKey("EnvelopeDocuments"), value);
+        }
+
+        public string TemplateId {
+            get => _cache.Get<string>(GetKey("TemplateId"));
+            set => _cache.Set(GetKey("TemplateId"), value);
+        }
+
+        public string Status { get; set; }
+
+        private Account GetAccountInfo(OAuthToken authToken)
+        {
+            _apiClient.SetOAuthBasePath(this._configuration["DocuSignJWT:AuthServer"]);
+            UserInfo userInfo = _apiClient.GetUserInfo(authToken.access_token);
+            Account acct = userInfo.Accounts.FirstOrDefault();
+            if (acct == null)
+            {
+                throw new Exception("The user does not have access to account");
+            }
+
+            return acct;
+        }
+    }
+}

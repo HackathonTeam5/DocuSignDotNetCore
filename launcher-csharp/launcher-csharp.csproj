@@ -1,0 +1,37 @@
+﻿<Project Sdk="Microsoft.NET.Sdk.Web">
+
+  <PropertyGroup>
+    <TargetFramework>netcoreapp3.1</TargetFramework>
+    <RootNamespace>DocuSign.CodeExamples</RootNamespace>
+    <UserSecretsId>c9040246-021b-4d94-a540-1a70ed4d4669</UserSecretsId>
+  </PropertyGroup>
+
+  <PropertyGroup Condition=" '$(RunConfiguration)' == 'CodeExamples' " />
+  
+  <ItemGroup>
+    <None Include="..\.editorconfig" Link=".editorconfig" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="DocuSign.eSign.dll" Version="5.0.0" />
+    <PackageReference Include="DocuSign.Rooms" Version="1.0.0-beta" />
+    <PackageReference Include="Microsoft.AspNetCore.Session" Version="2.2.0" />
+    <PackageReference Include="Microsoft.Owin" Version="4.1.1" />
+    <PackageReference Include="Microsoft.Sharepoint" Version="1.0.1" />
+    <PackageReference Include="Microsoft.VisualStudio.Web.CodeGeneration.Design" Version="3.1.4" />
+    <PackageReference Include="SharePointClient16x" Version="1.0.3" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Content Update="Views\Eg031BulkSendEnvelopes\Eg031.cshtml">
+      <Pack>$(IncludeRazorContentInPack)</Pack>
+    </Content>
+    <Content Update="Views\Shared\_HomeLayout.cshtml">
+      <Pack>$(IncludeRazorContentInPack)</Pack>
+    </Content>
+    <Content Update="Views\Shared\_Layout.cshtml">
+      <Pack>$(IncludeRazorContentInPack)</Pack>
+    </Content>
+  </ItemGroup>
+
+</Project>
